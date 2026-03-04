@@ -255,6 +255,7 @@ STRICT RULES:
 - For questions about projects/billing/operations: call query_work_orders  
 - If the question spans both: call BOTH tools
 - If data_quality_notes is present in the result, mention relevant caveats to the user
+- ALWAYS put data quality notes at the very END (if there are any), under a ### Data Quality Notes header.
 
 FORMATTING:
 - Use Indian number format: Lakhs (₹X.XX L) for <1Cr, Crores (₹X.XX Cr) for >=1Cr
