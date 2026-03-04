@@ -1,43 +1,159 @@
-# Skylark Drones — Business Intelligence Agent
+# 🚁 Skylark Drones — Business Intelligence Agent
 
-A live AI agent that answers founder-level business questions by querying Monday.com boards in real time.
+A live AI-powered Business Intelligence agent that answers founder-level questions by querying Monday.com boards in real time. No cached data. No pre-loaded context. Every question triggers a fresh API call.
 
-## Architecture
+---
+
+## 🌐 Live Demo
+
+> **[https://skylark-agent.vercel.app](https://skylark-agent.vercel.app)**
+
+**Monday.com Boards (source data):**
+- Work Orders Board — project execution, billing, collections
+- Deals Board — sales pipeline, deal stages, probabilities
+
+---
+
+## 🧠 What It Does
+
+A founder types: *"How's our Mining pipeline looking this quarter?"*
+
+The agent:
+1. **Understands** the question using Gemini 2.5 Flash
+2. **Decides** which Monday.com board(s) to query via tool calling
+3. **Fetches** live data via Monday.com GraphQL API
+4. **Cleans** the messy real-world data (normalizes dates, numbers, sectors, nulls)
+5. **Responds** with streamed, formatted insights in real time
+6. **Shows** every step in the Action Trace panel — full transparency
+
+---
+
+## 🏗️ Architecture
 
 ```
-User Question
-     ↓
-[ Next.js Chat UI ]  — shows action trace + streamed answer
-     ↓
-[ /api/chat — Next.js API Route ]
-     ↓              ↓
-[ Claude API ]   [ Monday.com GraphQL API ]
- (tool calling)    (live data — no cache)
+┌─────────────────────────────────────────────────────────┐
+│                    User (Browser)                        │
+│              React Chat UI + Action Trace                │
+└────────────────────────┬────────────────────────────────┘
+                         │ POST /api/chat (SSE stream)
+┌────────────────────────▼────────────────────────────────┐
+│              Next.js API Route (/pages/api/chat.js)      │
+│                                                          │
+│  1. Receive user message                                 │
+│  2. Send to Gemini with tool definitions                 │
+│  3. Gemini decides which tool(s) to call                 │
+│  4. Fetch live data from Monday.com GraphQL API          │
+│  5. Clean + normalize data (dates, numbers, sectors)     │
+│  6. Feed cleaned data back to Gemini for analysis        │
+│  7. Stream final response token-by-token via SSE         │
+└──────────┬──────────────────────────┬───────────────────┘
+           │                          │
+┌──────────▼──────────┐   ┌──────────▼─────────────────┐
+│   Gemini 2.5 Flash   │   │  Monday.com GraphQL API     │
+│  (AI reasoning +     │   │  boards(ids: [...]) {       │
+│   tool calling)      │   │    columns { id title }     │
+└─────────────────────┘   │    items_page(limit: 500)   │
+                           │  }                          │
+                           └────────────────────────────┘
 ```
 
-**How it works:**
-1. User asks a question in the chat
-2. The API route sends it to Claude with tool definitions
-3. Claude decides which Monday.com board(s) to query
-4. The backend makes live GraphQL calls to Monday.com
-5. Claude analyzes the data and responds with insights
-6. The UI streams the response + shows every API call in the Action Trace panel
+### Why This Stack
 
-## Monday.com Boards
+| Layer | Choice | Reason |
+|-------|--------|--------|
+| Framework | Next.js 14 | API routes + React UI in one repo, zero-config Vercel deploy |
+| AI | Gemini 2.5 Flash | Free tier, strong reasoning, native tool calling |
+| Data source | Monday.com GraphQL API | Live queries — no caching, no stale data |
+| Streaming | Server-Sent Events (SSE) | Real-time token streaming + action trace events on one connection |
+| Hosting | Vercel | Auto-deploy from GitHub, stays live on free tier |
 
-- **Work Orders** — Project execution, billing, collections, sector performance
-- **Deals** — Sales pipeline, deal stages, closure probability, revenue forecast
+---
 
-## Setup Instructions
+## ✨ Features
+
+### 1. Live Monday.com Integration
+- Every query makes fresh GraphQL API calls — data is never cached or stored
+- Queries both boards simultaneously when needed (cross-board questions)
+- Fetches column definitions separately from `board.columns` to handle Monday.com's API versioning (newer API removed `title` from `column_values`)
+
+### 2. Data Cleaning Pipeline
+Real-world data is messy. Every record is cleaned before reaching the AI:
+
+| Issue | Fix |
+|-------|-----|
+| Inconsistent date formats (DD/MM/YYYY, MM-DD-YYYY) | Normalized to YYYY-MM-DD |
+| Currency strings with ₹ and commas | Parsed to clean floats |
+| Sector name variations ("powerline", "Powerline Inspection", "POWERLINE") | Normalized to canonical names |
+| Status string variations ("executed until c...") | Normalized to full values |
+| Dash / N/A / blank values | Converted to `null` |
+| Duplicate header rows accidentally imported from CSV | Filtered out automatically |
+| Columns with >30% null values | Flagged in data quality notes |
+
+### 3. Real-time Streaming
+- AI response streams token-by-token using Gemini's `sendMessageStream()`
+- Blinking cursor `▋` shows the AI is actively generating
+- Action Trace panel updates live alongside the response
+
+### 4. Agent Action Trace Panel
+Every query shows in the right-side panel:
+- Which board(s) are being queried and the reason why
+- Monday.com Board IDs being called
+- Record counts fetched and cleaned
+- Data quality warnings (missing fields flagged)
+- Timestamps for every step
+
+### 5. Rich Markdown Rendering
+Responses render with full formatting:
+- **Bold** key numbers, `### headers`, bullet lists, tables
+- Tight list spacing — no awkward paragraph gaps between bullets
+- Data quality notes always appear **last**, after the main answer
+
+### 6. Conversational Follow-ups
+- Full conversation history is maintained across turns
+- Follow-up questions like "Now filter those by Mining sector" work correctly
+- Context carries forward without re-explaining the question
+
+---
+
+## 📁 Project Structure
+
+```
+skylark-agent/
+├── pages/
+│   ├── index.js          # Chat UI — streaming, markdown, action trace
+│   ├── _app.js           # Next.js app wrapper
+│   └── api/
+│       └── chat.js       # Agent backend — all logic lives here
+│           ├── normalizeDate()     # Date format normalization
+│           ├── normalizeNumber()   # Currency/number cleaning
+│           ├── normalizeSector()   # Sector name canonicalization
+│           ├── normalizeStatus()   # Status string normalization
+│           ├── cleanRecord()       # Per-row cleaning pipeline
+│           ├── isHeaderRow()       # Filter accidental header rows
+│           ├── fetchBoardItems()   # Monday.com GraphQL fetcher
+│           └── executeTool()       # Tool execution + SSE trace events
+├── styles/
+│   └── globals.css       # Dark theme + markdown styles + animations
+├── public/
+├── .env.local.example    # Environment variable template
+├── .gitignore
+├── next.config.js
+├── package.json
+└── README.md
+```
+
+---
+
+## 🚀 Setup & Deployment
 
 ### Prerequisites
-- Node.js 18+ installed
-- Monday.com account with Work Orders and Deals boards imported
-- Anthropic API key (console.anthropic.com)
+- Node.js 18+
+- Monday.com account with **Work Orders** and **Deals** boards imported
+- Google AI Studio account (free) — for Gemini API key
 
 ### 1. Clone and install
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/YOUR_USERNAME/skylark-agent.git
 cd skylark-agent
 npm install
 ```
@@ -46,44 +162,110 @@ npm install
 ```bash
 cp .env.local.example .env.local
 ```
-Edit `.env.local` and fill in:
-- `ANTHROPIC_API_KEY` — from console.anthropic.com
-- `MONDAY_API_TOKEN` — from monday.com profile → Developers → My Access Tokens
-- `WORK_ORDERS_BOARD_ID` — from the URL when viewing your Work Orders board
-- `DEALS_BOARD_ID` — from the URL when viewing your Deals board
+
+Edit `.env.local`:
+```env
+GEMINI_API_KEY=AIzaSy...           # from aistudio.google.com → Get API Key
+MONDAY_API_TOKEN=eyJhbGci...       # monday.com → Profile → Developers → My Access Tokens
+WORK_ORDERS_BOARD_ID=5026985662    # from monday.com board URL
+DEALS_BOARD_ID=5026985928          # from monday.com board URL
+NEXT_PUBLIC_WORK_ORDERS_BOARD_ID=5026985662
+NEXT_PUBLIC_DEALS_BOARD_ID=5026985928
+```
 
 ### 3. Run locally
 ```bash
 npm run dev
+# Open http://localhost:3000
 ```
-Open http://localhost:3000
 
 ### 4. Deploy to Vercel
-```bash
-# Push to GitHub first, then:
-vercel --prod
-# Add env vars in Vercel Dashboard → Project → Settings → Environment Variables
-```
+Push to GitHub, then import the repo at vercel.com — it auto-detects Next.js.
 
-## Tech Stack
+**Add all 6 environment variables in Vercel:**
+Dashboard → Project → Settings → Environment Variables
 
-| Layer | Choice | Why |
-|-------|--------|-----|
-| Framework | Next.js 14 | API routes + React UI in one project |
-| AI | Claude claude-sonnet-4-20250514 via tool calling | Claude decides what to query — agentic behavior |
-| Data | Monday.com GraphQL API | Live queries, no caching |
-| Hosting | Vercel | Zero-config deployment, free tier, stays live |
-| Streaming | Server-Sent Events (SSE) | Real-time action trace + streaming responses |
+Then: Deployments tab → 3 dots → Redeploy.
 
-## Column Mapping
+---
+
+## 🗂️ Monday.com Board Setup
 
 ### Work Orders Board
-Item Name: Deal name masked
-Key columns: Customer Name Code, Serial #, Nature of Work, Execution Status,
-Sector, Type of Work, Amount in Rupees (Excl/Incl GST), Billed Value,
-Collected Amount, Invoice Status, WO Status, Billing Status, Collection Date
+**Item Name:** Deal name masked
+
+| Column | Recommended Type |
+|--------|-----------------|
+| Customer Name Code | Text |
+| Serial # | Text |
+| Nature of Work | Dropdown |
+| Execution Status | Status |
+| Data Delivery Date | Date |
+| Date of PO/LOI | Date |
+| Sector | Dropdown |
+| Amount in Rupees (Excl of GST) (Masked) | Numbers |
+| Billed Value in Rupees (Excl of GST.) (Masked) | Numbers |
+| Collected Amount in Rupees (Incl of GST.) (Masked) | Numbers |
+| Amount Receivable (Masked) | Numbers |
+| Invoice Status | Status |
+| WO Status (billed) | Status |
+| Billing Status | Status |
 
 ### Deals Board
-Item Name: Deal Name
-Key columns: Owner code, Client Code, Deal Status, Closure Probability,
-Masked Deal value, Deal Stage, Product deal, Sector/service, Created Date
+**Item Name:** Deal Name
+
+| Column | Recommended Type |
+|--------|-----------------|
+| Owner code | Text |
+| Client Code | Text |
+| Deal Status | Status |
+| Close Date (A) | Date |
+| Closure Probability | Dropdown |
+| Masked Deal value | Numbers |
+| Tentative Close Date | Date |
+| Deal Stage | Dropdown |
+| Sector/service | Dropdown |
+| Created Date | Date |
+
+---
+
+## 💬 Example Queries
+
+```
+"How's our pipeline looking this quarter?"
+"Which sectors have the most deal value?"
+"Show total revenue from completed work orders"
+"What's the deal stage funnel breakdown?"
+"Which deals have high closure probability?"
+"Compare billing status across work orders"
+"Which sector has the highest receivables?"
+"Prepare a leadership update summary"
+"How many work orders are fully billed vs partially billed?"
+"Show me deals stuck in Negotiations stage"
+```
+
+---
+
+## 🔒 Security Notes
+
+- API keys are stored as Vercel environment variables — never in the codebase
+- Monday.com access is **read-only** — the agent never writes or modifies board data
+- `.env.local` is gitignored — never committed to the repository
+- No data is ever cached, stored, or persisted — every query is stateless
+
+---
+
+## 🛠️ Tech Stack
+
+- **Next.js 14** — framework
+- **React 18** — UI
+- **@google/generative-ai** — Gemini 2.5 Flash SDK
+- **Monday.com GraphQL API v2** — live data source
+- **Vercel** — hosting + serverless functions
+- **Server-Sent Events (SSE)** — real-time streaming
+
+---
+
+## 📄 License
+
+Built for the Skylark Drones recruitment assignment.
