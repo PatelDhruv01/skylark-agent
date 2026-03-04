@@ -6,7 +6,7 @@ A live AI-powered Business Intelligence agent that answers founder-level questio
 
 ## 🌐 Live Demo
 
-> **[https://skylark-agent.vercel.app](https://skylark-agent.vercel.app)**
+> **[https://skylark-agent-phi.vercel.app/](https://skylark-agent-phi.vercel.app/)**
 
 **Monday.com Boards (source data):**
 - Work Orders Board — project execution, billing, collections
