@@ -44,9 +44,9 @@ function renderMarkdown(text) {
   // Inline code
   t = t.replace(/`([^`]+)`/g, '<code>$1</code>');
 
-  // Bullet lists (handle -, *, •)
+  // Bullet lists — keep consecutive items together, no <p> wrapping
   t = t.replace(/^[\-\*•] (.+)$/gm, '<li>$1</li>');
-  t = t.replace(/(<li>.*<\/li>\n?)+/gs, (m) => `<ul>${m}</ul>`);
+  t = t.replace(/(<li>[\s\S]*?<\/li>\n?)+/g, (m) => `<ul>${m}</ul>`);
 
   // Numbered lists
   t = t.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
@@ -54,12 +54,16 @@ function renderMarkdown(text) {
   // Horizontal rule
   t = t.replace(/^---+$/gm, '<hr/>');
 
-  // Paragraphs (double newlines)
+  // Paragraphs — only wrap blocks that aren't already HTML tags
   t = t.split(/\n\n+/).map((block) => {
-    if (block.match(/^<(h[1-3]|ul|ol|pre|table|hr)/)) return block;
-    if (block.trim() === '') return '';
-    return `<p>${block.replace(/\n/g, '<br/>')}</p>`;
-  }).join('\n');
+    const trimmed = block.trim();
+    if (!trimmed) return '';
+    // Don't wrap if already an HTML block element
+    if (trimmed.match(/^<(h[1-6]|ul|ol|li|pre|table|thead|tbody|tr|hr|blockquote)/)) return trimmed;
+    // Don't wrap lone <li> lines (they get grouped above)
+    if (trimmed.startsWith('<li>')) return trimmed;
+    return `<p>${trimmed.replace(/\n/g, '<br/>')}</p>`;
+  }).filter(Boolean).join('\n');
 
   return t;
 }
