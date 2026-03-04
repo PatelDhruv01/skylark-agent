@@ -9,8 +9,8 @@ A live AI-powered Business Intelligence agent that answers founder-level questio
 > **[https://skylark-agent-phi.vercel.app/](https://skylark-agent-phi.vercel.app/)**
 
 **Monday.com Boards (source data):**
-- Work Orders Board — project execution, billing, collections
-- Deals Board — sales pipeline, deal stages, probabilities
+- Work Orders Board — project execution, billing, collections [[view](https://view.monday.com/5026985662-ffa2224f65990845ed2d2b0b41228a79?r=apse2&is_sharable_link=true)]
+- Deals Board — sales pipeline, deal stages, probabilities [[view](https://view.monday.com/5026985928-e92a6b4f94367e09244596f82b37e8fd?r=apse2&is_sharable_link=true)]
 
 ---
 
