@@ -10,13 +10,16 @@ async function fetchBoardItems(boardId) {
     query GetBoardItems($boardId: [ID!]!) {
       boards(ids: $boardId) {
         name
+        columns {
+          id
+          title
+        }
         items_page(limit: 500) {
           items {
             id
             name
             column_values {
               id
-              title
               text
               value
             }
@@ -43,10 +46,16 @@ async function fetchBoardItems(boardId) {
   const board = json.data?.boards?.[0];
   if (!board) throw new Error('Board not found');
 
+  const colTitleMap = {};
+  for (const col of board.columns || []) {
+    colTitleMap[col.id] = col.title;
+  }
+
   const items = board.items_page.items.map((item) => {
     const row = { _item_name: item.name };
     for (const col of item.column_values) {
-      row[col.title] = col.text || null;
+      const title = colTitleMap[col.id] || col.id;
+      row[title] = col.text || null;
     }
     return row;
   });
