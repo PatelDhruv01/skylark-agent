@@ -17,7 +17,7 @@ function normalizeDate(val) {
   if (dmy) return `${dmy[3]}-${dmy[2].padStart(2,'0')}-${dmy[1].padStart(2,'0')}`;
   // MM/DD/YYYY → YYYY-MM-DD
   const mdy = val.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (mdy) return `${mdy[3]}-${mdy[1].padStart(2','0')}-${mdy[2].padStart(2,'0')}`;
+  if (mdy) return `${mdy[3]}-${mdy[1].padStart(2,'0')}-${mdy[2].padStart(2,'0')}`;
   return val.trim(); // return as-is if unknown format
 }
 
