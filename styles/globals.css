@@ -7,7 +7,6 @@ body {
   height: 100vh;
   overflow: hidden;
 }
-
 /* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
